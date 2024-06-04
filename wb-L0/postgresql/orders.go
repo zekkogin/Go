@@ -2,6 +2,8 @@ package postgresql
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -13,6 +15,7 @@ import (
 type OrdersDb interface {
 	InitTableOrders()
 	insertOrder(ctx context.Context, order model.Order) error
+	GetRows(ctx context.Context) []model.Order
 }
 
 func (pool Pool) InsertOrder(ctx context.Context, order model.Order) error {
@@ -74,4 +77,59 @@ func (pool Pool) InitTableOrders() {
 	if err != nil {
 		fmt.Errorf("Error occurred in goose.UpTo -> init-table.sql: %v", err)
 	}
+}
+
+func (pool Pool) GetRows(ctx context.Context) []model.Order {
+	var orders []model.Order
+	tx, err := pool.P.Begin(ctx)
+	if err != nil {
+		fmt.Errorf("Error occurred in pool begin from GetAllFromDB: %v", err)
+	}
+	defer tx.Rollback(ctx)
+	query, err := os.ReadFile("postgresql/queries/get_orders_jsonb.sql")
+	if err != nil {
+		fmt.Println("Error reading SQL file:", err)
+	}
+	rows, err := tx.Query(ctx, string(query))
+	if err != nil {
+		fmt.Errorf("Error occurred in quering from GetAllFromDB: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var order model.Order
+		var orderJSON []byte
+		err := rows.Scan(&orderJSON)
+		if err != nil {
+			fmt.Errorf("Error occurred rows scan: %v", err)
+		}
+		err = json.Unmarshal(orderJSON, &order)
+		if err != nil {
+			fmt.Errorf("Error occurred in unmarshall order: %v", err)
+		}
+		orders = append(orders, order)
+	}
+	if err := rows.Err(); err != nil {
+		fmt.Errorf("Error occurred in rows.err(): %v", err)
+	}
+	return orders
+}
+
+func (pool Pool) GetRowByID(ctx context.Context, id string) model.Order {
+	var order model.Order
+	tx, err := pool.P.Begin(ctx)
+	if err != nil {
+		fmt.Errorf("Error occurred in pool begin from GetAllFromDB: %v", err)
+	}
+	defer tx.Rollback(ctx)
+	query, err := os.ReadFile("postgresql/queries/get_order_by_uid.sql")
+	if err != nil {
+		fmt.Println("Error reading SQL file:", err)
+	}
+	if err := tx.QueryRow(ctx, string(query), id).Scan(&order); err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Errorf("error %v -- %s: unknown id", err, id)
+		}
+		fmt.Errorf("QueryRow error %v --  %s", err, id)
+	}
+	return order
 }
