@@ -1,8 +1,8 @@
-SELECT jsonb_build_object(
+SELECT json_build_object(
                'order_uid', o.order_uid,
                'track_number', o.track_number,
                'entry', o.entry,
-               'delivery', jsonb_build_object(
+               'delivery', json_build_object(
                        'name', d.name,
                        'phone', d.phone,
                        'zip', d.zip,
@@ -11,7 +11,7 @@ SELECT jsonb_build_object(
                        'region', d.region,
                        'email', d.email
                            ),
-               'payment', jsonb_build_object(
+               'payment', json_build_object(
                        'transaction', p.transaction,
                        'request_id', p.request_id,
                        'currency', p.currency,
@@ -23,8 +23,8 @@ SELECT jsonb_build_object(
                        'goods_total', p.goods_total,
                        'custom_fee', p.custom_fee
                           ),
-               'items', jsonb_agg(
-                       jsonb_build_object(
+               'items', json_agg(
+                       json_build_object(
                                'chrt_id', i.chrt_id,
                                'track_number', i.track_number,
                                'price', i.price,
