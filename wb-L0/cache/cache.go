@@ -1,11 +1,11 @@
 package cache
 
 import (
-	"github.com/jackc/pgx/v5/pgxpool"
+	"context"
 	"github.com/muesli/cache2go"
-	"log"
 	"time"
 	"wb-L0/model"
+	"wb-L0/postgresql"
 )
 
 type CacheOrder interface {
@@ -23,17 +23,15 @@ func CacheNew() *Cache {
 }
 
 func (c Cache) CacheAdd(order model.Order) {
-	log.Println("zashel v cache")
 	c.cache.Lock()
 	defer c.cache.Unlock()
 	c.cache.Add(c.cache.Count(), 10*time.Minute, order)
-	log.Println("dobavelno v cache")
 }
 
-func (c Cache) GetByID() interface{} {
+func (c Cache) GetByID(order_uid string) interface{} {
 	c.cache.Lock()
 	defer c.cache.Unlock()
-	order, err := c.cache.Value(c.cache.Count())
+	order, err := c.cache.Value(order_uid)
 	if err != nil {
 		return model.Order{}
 	} else {
@@ -41,6 +39,17 @@ func (c Cache) GetByID() interface{} {
 	}
 }
 
-func (c Cache) LoadFromDatabase(pool pgxpool.Pool) error {
-
+func (c Cache) LoadFromDatabase(pool postgresql.Pool) {
+	if pool.DbIsEmpty() {
+		return
+	}
+	var models []model.Order
+	models = pool.GetRows(context.Background())
+	l := len(models)
+	// TODO: сделать неполную загрузку в кэш
+	for i := 0; i < l; i++ {
+		var m model.Order
+		m = models[i]
+		c.CacheAdd(m)
+	}
 }
