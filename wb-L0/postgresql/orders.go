@@ -16,6 +16,13 @@ type OrdersDb interface {
 	InitTableOrders()
 	insertOrder(ctx context.Context, order model.Order) error
 	GetRows(ctx context.Context) []model.Order
+	GetRowByID(ctx context.Context, id string) model.Order
+	Close()
+	DbIsEmpty() bool
+}
+
+func (pool Pool) Close() {
+	pool.Close()
 }
 
 func (pool Pool) InsertOrder(ctx context.Context, order model.Order) error {
@@ -86,7 +93,7 @@ func (pool Pool) GetRows(ctx context.Context) []model.Order {
 		fmt.Errorf("Error occurred in pool begin from GetAllFromDB: %v", err)
 	}
 	defer tx.Rollback(ctx)
-	query, err := os.ReadFile("postgresql/queries/get_orders_jsonb.sql")
+	query, err := os.ReadFile("postgresql/queries/get_orders_json.sql")
 	if err != nil {
 		fmt.Println("Error reading SQL file:", err)
 	}
@@ -132,4 +139,13 @@ func (pool Pool) GetRowByID(ctx context.Context, id string) model.Order {
 		fmt.Errorf("QueryRow error %v --  %s", err, id)
 	}
 	return order
+}
+
+func (pool Pool) DbIsEmpty() bool {
+	var i int
+	err := pool.P.QueryRow(context.Background(), "SELECT COUNT(*) FROM orders LIMIT 1").Scan(&i)
+	if err != nil {
+		fmt.Errorf("Error occurred in isEmpty query: %v", err)
+	}
+	return i == 0
 }
