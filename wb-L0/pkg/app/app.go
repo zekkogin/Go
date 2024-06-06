@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	"github.com/nats-io/stan.go"
 	"log"
 	"time"
@@ -14,6 +15,7 @@ type App struct {
 	C    *cache.Cache
 	Pool psql.Pool
 	Sc   stan.Conn
+	R    *gin.Engine
 }
 
 //func (a App) GetDB() *pgxpool.Pool {
@@ -27,6 +29,7 @@ func NewApp() App {
 		C:    cache.CacheNew(),
 		Pool: initializeDB(ctx),
 		Sc:   initializeStanConn(ctx),
+		R:    initializeHttp(ctx),
 	}
 }
 
@@ -46,4 +49,9 @@ func initializeDB(ctx context.Context) psql.Pool {
 func initializeStanConn(ctx context.Context) stan.Conn {
 	sc := nats.Connect(ctx, "sub")
 	return sc
+}
+
+func initializeHttp(ctx context.Context) *gin.Engine {
+	r := gin.Default()
+	return r
 }
